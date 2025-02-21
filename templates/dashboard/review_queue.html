@@ -1,0 +1,158 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Review Queue</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="review-queue-container">
+        <h1>HR Decision Review Queue</h1>
+        
+        <div class="filters">
+            <select id="decision-type-filter">
+                <option value="all">All Decisions</option>
+                <option value="termination">Terminations</option>
+                <option value="access">Access Changes</option>
+                <option value="performance">Performance Reviews</option>
+            </select>
+            
+            <select id="priority-filter">
+                <option value="all">All Priorities</option>
+                <option value="high">High Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="low">Low Priority</option>
+            </select>
+        </div>
+
+        <div class="queue-items" id="queue-container">
+            {% for item in queue_items %}
+            <div class="queue-item {{ item.priority }}" data-type="{{ item.decision_type }}">
+                <div class="item-header">
+                    <h3>{{ item.employee_name }}</h3>
+                    <span class="priority-badge">{{ item.priority }}</span>
+                </div>
+                
+                <div class="item-details">
+                    <p><strong>Decision Type:</strong> {{ item.decision_type }}</p>
+                    <p><strong>Requested By:</strong> {{ item.requested_by }}</p>
+                    <p><strong>Date:</strong> {{ item.request_date }}</p>
+                    <p><strong>Justification:</strong> {{ item.justification }}</p>
+                    
+                    {% if item.supporting_data %}
+                    <div class="supporting-data">
+                        <h4>Supporting Data</h4>
+                        <ul>
+                            {% for data in item.supporting_data %}
+                            <li>{{ data }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="item-actions">
+                    <button class="approve-btn" onclick="approveDecision('{{ item.id }}')">Approve</button>
+                    <button class="reject-btn" onclick="rejectDecision('{{ item.id }}')">Reject</button>
+                    <button class="more-info-btn" onclick="requestMoreInfo('{{ item.id }}')">Request More Info</button>
+                </div>
+
+                <div class="notes-section">
+                    <textarea placeholder="Add review notes..." id="notes-{{ item.id }}"></textarea>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal for confirmation -->
+    <div id="confirmation-modal" class="modal">
+        <div class="modal-content">
+            <h2>Confirm Decision</h2>
+            <p id="modal-message"></p>
+            <div class="modal-actions">
+                <button onclick="confirmDecision()">Confirm</button>
+                <button onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/websocket_handler.js') }}"></script>
+    <script>
+        // Filter handling
+        document.getElementById('decision-type-filter').addEventListener('change', filterQueue);
+        document.getElementById('priority-filter').addEventListener('change', filterQueue);
+
+        function filterQueue() {
+            const typeFilter = document.getElementById('decision-type-filter').value;
+            const priorityFilter = document.getElementById('priority-filter').value;
+            const items = document.querySelectorAll('.queue-item');
+
+            items.forEach(item => {
+                const matchesType = typeFilter === 'all' || item.dataset.type === typeFilter;
+                const matchesPriority = priorityFilter === 'all' || item.classList.contains(priorityFilter);
+                item.style.display = (matchesType && matchesPriority) ? 'block' : 'none';
+            });
+        }
+
+        function approveDecision(id) {
+            showConfirmationModal('approve', id);
+        }
+
+        function rejectDecision(id) {
+            showConfirmationModal('reject', id);
+        }
+
+        function requestMoreInfo(id) {
+            const notes = document.getElementById(`notes-${id}`).value;
+            fetch('/api/request-more-info', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    decision_id: id,
+                    notes: notes
+                })
+            });
+        }
+
+        function showConfirmationModal(action, id) {
+            const modal = document.getElementById('confirmation-modal');
+            const message = document.getElementById('modal-message');
+            message.textContent = `Are you sure you want to ${action} this decision?`;
+            modal.dataset.action = action;
+            modal.dataset.id = id;
+            modal.style.display = 'block';
+        }
+
+        function confirmDecision() {
+            const modal = document.getElementById('confirmation-modal');
+            const action = modal.dataset.action;
+            const id = modal.dataset.id;
+            const notes = document.getElementById(`notes-${id}`).value;
+
+            fetch(`/api/${action}-decision`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    decision_id: id,
+                    notes: notes
+                })
+            }).then(() => {
+                location.reload();
+            });
+
+            closeModal();
+        }
+
+        function closeModal() {
+            document.getElementById('confirmation-modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
