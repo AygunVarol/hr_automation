@@ -1,0 +1,144 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">HR Automation Platform</div>
+        <div class="nav-user">
+            Welcome, {{ current_user.name }} | <a href="{{ url_for('auth.logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <ul class="nav-menu">
+                <li><a href="#pending-reviews" class="active">Pending Reviews</a></li>
+                <li><a href="#access-requests">Access Requests</a></li>
+                <li><a href="#employee-management">Employee Management</a></li>
+                <li><a href="#decision-logs">Decision Logs</a></li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <div class="alerts-panel">
+                <h3>Alerts</h3>
+                <div id="alerts-container"></div>
+            </div>
+
+            <div class="section" id="pending-reviews">
+                <h2>Pending Reviews</h2>
+                <div class="review-cards">
+                    {% for review in pending_reviews %}
+                    <div class="review-card">
+                        <h4>{{ review.employee.name }}</h4>
+                        <p>Review Type: {{ review.review_type }}</p>
+                        <p>Status: {{ review.status }}</p>
+                        <p>Due Date: {{ review.due_date }}</p>
+                        <button onclick="viewReview('{{ review.id }}')" class="btn primary">View Details</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="section" id="access-requests">
+                <h2>Access Requests</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Access Type</th>
+                            <th>Request Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for request in access_requests %}
+                        <tr>
+                            <td>{{ request.employee.name }}</td>
+                            <td>{{ request.access_type }}</td>
+                            <td>{{ request.request_date }}</td>
+                            <td>{{ request.status }}</td>
+                            <td>
+                                <button onclick="approveAccess('{{ request.id }}')" class="btn success">Approve</button>
+                                <button onclick="denyAccess('{{ request.id }}')" class="btn danger">Deny</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section" id="employee-management">
+                <h2>Employee Management</h2>
+                <div class="action-bar">
+                    <button onclick="showAddEmployeeModal()" class="btn primary">Add Employee</button>
+                    <input type="text" id="employeeSearch" placeholder="Search employees...">
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Status</th>
+                            <th>Last Review</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeeTableBody">
+                        {% for employee in employees %}
+                        <tr>
+                            <td>{{ employee.name }}</td>
+                            <td>{{ employee.department }}</td>
+                            <td>{{ employee.status }}</td>
+                            <td>{{ employee.last_review_date }}</td>
+                            <td>
+                                <button onclick="initiateReview('{{ employee.id }}')" class="btn primary">Review</button>
+                                <button onclick="manageAccess('{{ employee.id }}')" class="btn secondary">Access</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section" id="decision-logs">
+                <h2>Decision Logs</h2>
+                <div class="filters">
+                    <select id="decisionType">
+                        <option value="">All Types</option>
+                        <option value="review">Reviews</option>
+                        <option value="access">Access Changes</option>
+                        <option value="termination">Terminations</option>
+                    </select>
+                    <input type="date" id="dateFilter">
+                </div>
+                <div class="log-entries" id="logEntriesContainer">
+                    {% for log in decision_logs %}
+                    <div class="log-entry">
+                        <span class="timestamp">{{ log.timestamp }}</span>
+                        <span class="type">{{ log.decision_type }}</span>
+                        <span class="description">{{ log.description }}</span>
+                        <span class="user">By: {{ log.user.name }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/websocket_handler.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeWebSocket();
+            setupEventListeners();
+        });
+    </script>
+</body>
+</html>
